@@ -1,14 +1,14 @@
 # data-generator
 
-FIXME: description
+Generates a CSV file that simulates a trade data file.
 
 ## Installation
 
-Download from http://example.com/FIXME.
+Install lein.
 
 ## Usage
 
-FIXME: explanation
+To run the data generator:
 
     $ java -jar data-generator-0.1.0-standalone.jar [args]
 

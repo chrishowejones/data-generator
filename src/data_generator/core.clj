@@ -1,7 +1,9 @@
 (ns data-generator.core
   (:require [clojure.test.check.generators :as gen]
             [clojure.data.csv :as csv]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clj-time.core :as t]
+            [clj-time.format :as format])
   (:gen-class))
 
 (def number-of-codes 1000)
@@ -78,17 +80,115 @@
 
 (def next-trade-id (trade-ids 1199))
 
-(def header
-  ["tradeid" "isin" "cusip" "sedol" "text" "number"])
 
-(defn line [] (let [code-keys (rand-code-indexes)]
+(defn new-date []
+  (let [days-to-subtract (rand-int 1000)]
+    (format/unparse-local-date
+     (format/formatter "yyyy-MM-dd")
+     (t/minus (t/today) (t/days days-to-subtract)))))
+
+(defn later-date [date-str]
+  (let [date (format/parse (format/formatter "yyyy-MM-dd") date-str)
+        interval-in-days (t/in-days (t/interval date (t/today-at-midnight)))
+        days-to-add (rand-int interval-in-days)]
+    (format/unparse (format/formatter "yyyy-MM-dd")
+     (t/plus date (t/days days-to-add)))))
+
+(defn buy-sell []
+  (rand-nth
+   ["BSBK"
+    "SBBK"
+    "SBSB"]))
+
+(defn currency []
+  (rand-nth
+   ["GBP"
+    "EUR"
+    "USD"
+    "HKD"
+    "SAR"
+    "JPY"
+    "ILS"
+    "CNY"
+    "AUD"]))
+
+(defn market []
+  (rand-nth
+   ["XNYS"
+"APXL"
+"AQUA"
+"AQXE"
+"XNYS"
+"XNYS"
+"XNYS"
+"ASEX"
+"XASX"
+"XASX"
+"XASX"
+"XASX"
+"XASX"
+"ATDF"
+"DBOX"
+"AWBX"
+"AWEX"
+"BACE"
+"XBAB"
+"BALT"
+"BAML"
+"BAPX"
+"BARX"
+"BARX"
+"BARX"
+"BCXE"
+"BCXE"
+"BCXE"
+"BATS"
+"BATS"
+"BATS"
+"BBSF"
+"BARX"
+"BCFS"
+"BCMM"
+"BCSE"
+"BCXE"
+"BEEX"
+"XBER"
+"XBER"
+"XBER"
+"BETA"
+"BFEX"
+"BGCI"
+"BGCF"
+"BGCI"
+"BIDS"
+"XBLB"
+"CHEV"
+"BLOX"
+"BLPX"
+"BLTD"
+"BALT"]))
+
+(def header
+  ["TRADE_ID" "ISIN" "CUSIP" "TRADE_DATE" "SETTLEMENT_DATE" "BUY_SELL" "QUANTITY" "GROSS_PRICE" "NET_PRICE" "CURRENCY" "ACCOUNT_ID" "PORTFOLIO_ID" "NET_AMOUNT" "MARKET" "SECURITY_TYPE" "REVERSAL" "TRADE_TYPE"])
+
+
+(defn line [] (let [code-keys (rand-code-indexes)
+                    trade-date (new-date)]
                 (vector
                  (next-trade-id)
                  (isin-code code-keys)
                  (cusip-code code-keys)
-                 (sedol-code code-keys)
-                 (alphas (rand-int 101))
-                 (numerics-as-str 10))))
+                 trade-date
+                 (later-date trade-date)
+                 (buy-sell)
+                 (numerics-as-str 10)
+                 (decimal-as-str 10 2)
+                 (decimal-as-str 10 2)
+                 (currency)
+                 (numerics-as-str 9)
+                 (numerics-as-str 8)
+                 (decimal-as-str 12 3)
+                 (market))))
 
 (def lines (repeatedly line))
 
