@@ -10,27 +10,28 @@ Install lein.
 
 To run the data generator:
 
-    $ java -jar data-generator-0.1.0-standalone.jar [args]
+    $ java -jar data-generator.jar [options]
 
 ## Options
 
-FIXME: listing of options this app accepts.
+Options:
+
+    -f, --filename FILENAME  defaults to 'trade.csv'
+    -l, --lines LINES        defaults to 10 lines in output file
 
 ## Examples
 
-...
+    $ java -jar data-generator.jar -f newfile.csv -l 20000
+
+Generates a trade file called 'newfile.csv' with 20,000 lines of
+output plus a header line.
 
 ### Bugs
 
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
 
 ## License
 
-Copyright © 2015 FIXME
+Copyright © 2015
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
