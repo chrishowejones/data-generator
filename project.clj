@@ -10,4 +10,5 @@
                  [org.clojure/tools.cli "0.3.1"]]
   :main ^:skip-aot data-generator.core
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all}})
+  :profiles {:uberjar {:aot :all}}
+  :uberjar-name "data-generator.jar")

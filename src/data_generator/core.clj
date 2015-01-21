@@ -289,7 +289,7 @@ nil]))
 (defn usage [options-summary]
   (->> ["This program generates a CSV of trade data."
         ""
-        "Usage: program-name [options]"
+        "Usage: java -jar data-generator.jar [options]"
         ""
         "Options:"
         options-summary]
