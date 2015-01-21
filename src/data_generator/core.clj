@@ -3,7 +3,8 @@
             [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [clj-time.core :as t]
-            [clj-time.format :as format])
+            [clj-time.format :as format]
+            [clojure.tools.cli :refer [parse-opts]])
   (:gen-class))
 
 (def number-of-codes 1000)
@@ -98,7 +99,8 @@
   (rand-nth
    ["BSBK"
     "SBBK"
-    "SBSB"]))
+    "SBSB"
+    nil]))
 
 (defn currency []
   (rand-nth
@@ -110,7 +112,43 @@
     "JPY"
     "ILS"
     "CNY"
-    "AUD"]))
+    "AUD"
+    nil]))
+
+(defn security-type []
+  (rand-nth
+   [
+"SYNTHETIC LOC"
+"SYNTHETIC REVOLVER"
+"TAX-SPARED"
+"TERM"
+"TERM GUARANTEE FAC"
+"TERM INCREMENT"
+"TERM LIFO"
+"TERM MULTI-DRAW"
+"TERM OVERDRAFT"
+"TERM REV"
+"TERM TAX-SPARED"
+"TERM VAT-TRNCH"
+"UK GILT STOCK"
+"US DOMESTIC"
+"US NON-DOLLAR"
+"VAT-TRNCH"
+"WARRANT"
+"YANKEE"
+"BANKERS ACCEPTANCE"
+"BASIS SWAP"
+"BUTTERFLY SWAP"
+"CAPS & FLOORS"
+"CD"
+"COMMERCIAL PAPER"
+"CONTRACT FRA"
+"CREDIT DEFAULT SWAP"
+"CROSS"
+"Currency future"
+"Currency option"
+"Currency spot"
+nil    ]))
 
 (defn market []
   (rand-nth
@@ -166,7 +204,37 @@
 "BLOX"
 "BLPX"
 "BLTD"
-"BALT"]))
+"BALT"
+nil]))
+
+(defn trade-type []
+  (rand-nth
+   ["RT"
+    "ST"
+    "SW"
+    "UT"
+    "X"
+    "Y"
+    "AT"
+    "PA"
+    "PC"
+    "T"
+    "WN"
+    "TS"
+    "WT"
+    "CT"
+    "AI"
+    "PN"
+    "VW"
+    "RC"
+    nil]))
+
+
+(defn reversal []
+  (rand-nth
+   ["Y"
+    "N"
+    nil]))
 
 (def header
   ["TRADE_ID" "ISIN" "CUSIP" "TRADE_DATE" "SETTLEMENT_DATE" "BUY_SELL" "QUANTITY" "GROSS_PRICE" "NET_PRICE" "CURRENCY" "ACCOUNT_ID" "PORTFOLIO_ID" "NET_AMOUNT" "MARKET" "SECURITY_TYPE" "REVERSAL" "TRADE_TYPE"])
@@ -188,7 +256,10 @@
                  (numerics-as-str 9)
                  (numerics-as-str 8)
                  (decimal-as-str 12 3)
-                 (market))))
+                 (market)
+                 (security-type)
+                 (reversal)
+                 (trade-type))))
 
 (def lines (repeatedly line))
 
@@ -203,8 +274,40 @@
                     :quote \"
                     :newline :lf))))
 
+(def cli-options
+  ;; file name
+  [["-f" "--filename FILENAME" "File name for output"
+    :default "trade.csv"
+    :validate [#(and (not (nil? %)) (not (empty? %))) "Must not be empty or nil"]]
+   ["-l" "--lines LINES" "Number of lines to generate"
+    :default 10
+    :parse-fn #(Integer/parseInt (clojure.string/trim %))
+    ]
+   ;; A boolean option defaulting to nil
+   ["-h" "--help"]])
+
+(defn usage [options-summary]
+  (->> ["This program generates a CSV of trade data."
+        ""
+        "Usage: program-name [options]"
+        ""
+        "Options:"
+        options-summary]
+       (clojure.string/join \newline)))
+
+(defn exit [status msg]
+  (println msg)
+  (System/exit status))
+
+(defn error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (clojure.string/join \newline errors)))
 
 (defn -main
   "Generate a file specified by file and number of lines."
   [& args]
-  (if (empty? args) (println "Usage: -f filename -l number of lines" )))
+  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
+    (cond
+      (:help options) (exit 0 (usage summary))
+      errors (exit 1 (error-msg errors)))
+    (output-csv (options :filename) (options :lines))))

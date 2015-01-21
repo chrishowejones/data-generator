@@ -6,7 +6,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/test.check "0.6.2"]
                  [org.clojure/data.csv "0.1.2"]
-                 [clj-time "0.9.0"]]
+                 [clj-time "0.9.0"]
+                 [org.clojure/tools.cli "0.3.1"]]
   :main ^:skip-aot data-generator.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})
