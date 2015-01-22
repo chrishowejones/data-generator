@@ -1,7 +1,15 @@
 (ns data-generator.core-test
-  (:require [clojure.test :refer :all]
+  (:require [midje.sweet :refer :all]
             [data-generator.core :refer :all]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
+(defn element-contained-in [expected-elements]
+        (fn [actual]
+          (some (hash-set actual) expected-elements)))
+
+(fact "isin returns a random isin from isins when :isin is in code types collection"
+      (let [dummy-code-types #{:isin nil}]
+        (isin-code dummy-code-types) => (element-contained-in isins)))
+
+(fact "isin returns nil when :isin is NOT in code types collection"
+      (let [dummy-code-types #{:cusip nil}]
+        (isin-code dummy-code-types) => nil?))
