@@ -308,6 +308,6 @@ nil]))
   [& args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
     (cond
-      (:help options) (exit 0 (usage summary))
+      (:help options) (println (usage summary))
       errors (exit 1 (error-msg errors)))
     (output-csv (options :filename) (options :lines))))

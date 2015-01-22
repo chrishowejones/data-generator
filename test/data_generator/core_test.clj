@@ -13,3 +13,11 @@
 (fact "isin returns nil when :isin is NOT in code types collection"
       (let [dummy-code-types #{:cusip nil}]
         (isin-code dummy-code-types) => nil?))
+
+(fact "-main with -h switch outputs usage information."
+      (with-out-str
+        (-main "-h")) => #"Usage: java -jar data-generator\.jar \[options\]"
+      (with-out-str
+        (-main "-h")) => #"-f, --filename FILENAME"
+      (with-out-str
+        (-main "-h")) => #"-l, --lines LINES")
