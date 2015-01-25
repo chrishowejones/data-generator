@@ -4,16 +4,24 @@
             [clojure.java.io :as io]
             [clj-time.core :as t]
             [clj-time.format :as format]
+            [clojure.string :refer [join]]
             [clojure.tools.cli :refer [parse-opts]])
   (:gen-class))
 
 (def number-of-codes 1000)
+
+(def error-rate-percentage 0.001)
+
 
 (defn alphas [len]
   (.toUpperCase (apply str (gen/sample gen/char-alpha len))))
 
 (defn numerics-as-str [len]
   (apply str (gen/sample gen/pos-int len)))
+
+(defn rand-number []
+  (str
+   (rand-nth [1 2 3 4 5 6 7 8 9 0])))
 
 (defn alphabetic-as-str [len]
   (apply str (gen/sample gen/char-alphanumeric len)))
@@ -22,6 +30,17 @@
   (let [int-digits (- scale precision)]
     (do
       (str (apply str (gen/sample gen/pos-int int-digits)) "." (apply str (gen/sample gen/pos-int precision))))))
+
+(let [name "fred"] (clojure.string/replace name (str (get name (rand-int (count name)))) (numerics-as-str 1)))
+(defn error-alphas [alpha-value]
+  (clojure.string/replace alpha-value
+                          (str (get alpha-value (rand-int (count alpha-value))))
+                          (rand-number)))
+
+(defmulti error-generator (fn [_ keyword] keyword))
+
+(defmethod error-generator :alpha [value _]
+  (str "I have a alpha value = " value))
 
 (defn isin []
   (apply str (alphas 2) (numerics-as-str 10)))
@@ -32,15 +51,15 @@
 (defn sedol []
   (numerics-as-str 9))
 
-(def isins
+(defonce isins
   (take number-of-codes
         (repeatedly isin)))
 
-(def cusips
+(defonce cusips
   (take number-of-codes
         (repeatedly cusip)))
 
-(def sedols
+(defonce sedols
   (take number-of-codes
         (repeatedly sedol)))
 
@@ -48,23 +67,6 @@
 
 (defn rand-code-indexes []
   (set (repeatedly 3 #(get code-types (rand-int 3)))))
-
-(defn security-code [key]
-  (condp = key
-    :isin (rand-nth isins)
-    :cusip (rand-nth cusips)
-    :sedol (rand-nth sedols)
-    nil))
-
-
-(defn code-index []
- (let [codes (rand-code-indexes)]
-   (vec (concat (repeat (- 3 (count codes)) nil) codes))))
-
-(defn code-values []
-  {:isin (rand-nth isins)
-   :cusip (rand-nth cusips)
-   :sedol "sedol"})
 
 (defn isin-code [set-of-code-types]
   (if (set-of-code-types :isin) (rand-nth isins) nil))
@@ -80,7 +82,6 @@
     #(swap! trade-id inc)))
 
 (def next-trade-id (trade-ids 1199))
-
 
 (defn new-date []
   (let [days-to-subtract (rand-int 1000)]
@@ -237,8 +238,7 @@ nil]))
     nil]))
 
 (def header
-  ["TRADE_ID" "ISIN" "CUSIP" "TRADE_DATE" "SETTLEMENT_DATE" "BUY_SELL" "QUANTITY" "GROSS_PRICE" "NET_PRICE" "CURRENCY" "ACCOUNT_ID" "PORTFOLIO_ID" "NET_AMOUNT" "MARKET" "SECURITY_TYPE" "REVERSAL" "TRADE_TYPE"])
-
+  [["TRADE_ID" "ISIN" "CUSIP" "TRADE_DATE" "SETTLEMENT_DATE" "BUY_SELL" "QUANTITY" "GROSS_PRICE" "NET_PRICE" "CURRENCY" "ACCOUNT_ID" "PORTFOLIO_ID" "NET_AMOUNT" "MARKET" "SECURITY_TYPE" "REVERSAL" "TRADE_TYPE"]])
 
 (defn line [] (let [code-keys (rand-code-indexes)
                     trade-date (new-date)]
@@ -261,18 +261,19 @@ nil]))
                  (reversal)
                  (trade-type))))
 
-(def lines (repeatedly line))
+(defn lines [] (repeatedly line))
+
+(defn csv-line [l]
+  (str (join "," l) "\n"))
 
 (defn output-csv
   ([filename] (output-csv filename 10))
   ([filename num-lines]
    (with-open [out-file (io/writer filename)]
-     (csv/write-csv out-file
-                    (cons header
-                          (take num-lines lines))
-                    :separator \,
-                    :quote \"
-                    :newline :lf))))
+     (.write out-file (csv-line (first header)))
+     (doseq [l (take num-lines (lines))]
+       (.write out-file
+               (csv-line l))))))
 
 (def cli-options
   ;; file name
@@ -310,4 +311,4 @@ nil]))
     (cond
       (:help options) (println (usage summary))
       errors (exit 1 (error-msg errors)))
-    (output-csv (options :filename) (options :lines))))
+    (time (output-csv (options :filename) (options :lines)))))
