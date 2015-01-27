@@ -1,10 +1,9 @@
 (ns data-generator.core
   (:require [clojure.test.check.generators :as gen]
-            [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [clj-time.core :as t]
             [clj-time.format :as format]
-            [clojure.string :refer [join]]
+            [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]])
   (:gen-class))
 
@@ -12,16 +11,34 @@
 
 (def error-rate-percentage 0.001)
 
+(defn my-proxy-with [this]
+  (let [metadata (atom {})]
+    (proxy [Object clojure.lang.IObj] []
+      (withMeta [new-meta] (do
+                             (swap! metadata merge-with new-meta)
+                             this))
+      (meta [] @metadata)
+      (toString [] (.toString this)))))
 
-(defn alphas [len]
+(def proxied-date
+    (proxy [java.util.Date] []
+        (toString [] "My date")))
+
+
+(defn alphas
+  {:return-type :alpha}
+  [len]
   (.toUpperCase (apply str (gen/sample gen/char-alpha len))))
 
-(defn numerics-as-str [len]
-  (apply str (gen/sample gen/pos-int len)))
+(defn- -rand-number [len]
+  (apply str
+   (take len
+         (repeatedly #(rand-nth [1 2 3 4 5 6 7 8 9 0])))))
 
-(defn rand-number []
-  (str
-   (rand-nth [1 2 3 4 5 6 7 8 9 0])))
+(defn numerics-as-str
+  {:return-type :numeric}
+  [len]
+  (-rand-number len))
 
 (defn alphabetic-as-str [len]
   (apply str (gen/sample gen/char-alphanumeric len)))
@@ -31,16 +48,45 @@
     (do
       (str (apply str (gen/sample gen/pos-int int-digits)) "." (apply str (gen/sample gen/pos-int precision))))))
 
-(let [name "fred"] (clojure.string/replace name (str (get name (rand-int (count name)))) (numerics-as-str 1)))
 (defn error-alphas [alpha-value]
-  (clojure.string/replace alpha-value
+  (str/replace alpha-value
                           (str (get alpha-value (rand-int (count alpha-value))))
-                          (rand-number)))
+                          (-rand-number 1)))
 
-(defmulti error-generator (fn [_ keyword] keyword))
+(defn error-numerics [numeric-value]
+  (str/replace numeric-value
+                          (str (get numeric-value (rand-int (count numeric-value))))
+                          (alphas 1)))
 
-(defmethod error-generator :alpha [value _]
-  (str "I have a alpha value = " value))
+(defn new-date
+  {:return-type :date}
+  []
+  (let [days-to-subtract (rand-int 1000)]
+    (format/unparse-local-date
+     (format/formatter "yyyy-MM-dd")
+     (t/minus (t/today) (t/days days-to-subtract)))))
+
+(defn later-date
+  {:return-type :date}
+  [date-str]
+  (let [date (format/parse (format/formatter "yyyy-MM-dd") date-str)
+        interval-in-days (t/in-days (t/interval date (t/today-at-midnight)))
+        days-to-add (rand-int interval-in-days)]
+    (format/unparse (format/formatter "yyyy-MM-dd")
+     (t/plus date (t/days days-to-add)))))
+
+(defmacro error-value
+  "Generate error values for function if function has :return-type of :alpha :numeric or :date"
+  [func]
+  (let [return-type (get
+          (meta
+           (resolve (first func))) :return-type :not-found)]
+    (condp = return-type
+      :alpha `(error-alphas ~func)
+      :numeric `(error-numerics ~func)
+      :date `(error-numerics ~func)
+      :not-found func)))
+
 
 (defn isin []
   (apply str (alphas 2) (numerics-as-str 10)))
@@ -77,31 +123,19 @@
 (defn sedol-code [set-of-code-types]
   (if (set-of-code-types :sedol) (rand-nth sedols) nil))
 
+
 (defn trade-ids [start-num]
   (let [trade-id (atom start-num)]
     #(swap! trade-id inc)))
 
 (def next-trade-id (trade-ids 1199))
 
-(defn new-date []
-  (let [days-to-subtract (rand-int 1000)]
-    (format/unparse-local-date
-     (format/formatter "yyyy-MM-dd")
-     (t/minus (t/today) (t/days days-to-subtract)))))
-
-(defn later-date [date-str]
-  (let [date (format/parse (format/formatter "yyyy-MM-dd") date-str)
-        interval-in-days (t/in-days (t/interval date (t/today-at-midnight)))
-        days-to-add (rand-int interval-in-days)]
-    (format/unparse (format/formatter "yyyy-MM-dd")
-     (t/plus date (t/days days-to-add)))))
 
 (defn buy-sell []
   (rand-nth
    ["BSBK"
     "SBBK"
-    "SBSB"
-    nil]))
+    "SBSB"]))
 
 (defn currency []
   (rand-nth
@@ -113,12 +147,10 @@
     "JPY"
     "ILS"
     "CNY"
-    "AUD"
-    nil]))
+    "AUD"]))
 
 (defn security-type []
-  (rand-nth
-   [
+  (rand-nth [
 "SYNTHETIC LOC"
 "SYNTHETIC REVOLVER"
 "TAX-SPARED"
@@ -148,8 +180,7 @@
 "CROSS"
 "Currency future"
 "Currency option"
-"Currency spot"
-nil    ]))
+"Currency spot"]))
 
 (defn market []
   (rand-nth
@@ -205,8 +236,7 @@ nil    ]))
 "BLOX"
 "BLPX"
 "BLTD"
-"BALT"
-nil]))
+"BALT"]))
 
 (defn trade-type []
   (rand-nth
@@ -227,15 +257,14 @@ nil]))
     "AI"
     "PN"
     "VW"
-    "RC"
-    nil]))
+    "RC"]))
 
 
 (defn reversal []
   (rand-nth
    ["Y"
-    "N"
-    nil]))
+    "N"]))
+
 
 (def header
   [["TRADE_ID" "ISIN" "CUSIP" "TRADE_DATE" "SETTLEMENT_DATE" "BUY_SELL" "QUANTITY" "GROSS_PRICE" "NET_PRICE" "CURRENCY" "ACCOUNT_ID" "PORTFOLIO_ID" "NET_AMOUNT" "MARKET" "SECURITY_TYPE" "REVERSAL" "TRADE_TYPE"]])
@@ -264,7 +293,7 @@ nil]))
 (defn lines [] (repeatedly line))
 
 (defn csv-line [l]
-  (str (join "," l) "\n"))
+  (str (str/join "," l) "\n"))
 
 (defn output-csv
   ([filename] (output-csv filename 10))
@@ -282,7 +311,7 @@ nil]))
     :validate [#(and (not (nil? %)) (not (empty? %))) "Must not be empty or nil"]]
    ["-l" "--lines LINES" "Number of lines to generate"
     :default 10
-    :parse-fn #(Integer/parseInt (clojure.string/trim %))
+    :parse-fn #(Integer/parseInt (str/trim %))
     ]
    ;; A boolean option defaulting to nil
    ["-h" "--help"]])
@@ -294,7 +323,7 @@ nil]))
         ""
         "Options:"
         options-summary]
-       (clojure.string/join \newline)))
+       (str/join \newline)))
 
 (defn exit [status msg]
   (println msg)
@@ -302,7 +331,7 @@ nil]))
 
 (defn error-msg [errors]
   (str "The following errors occurred while parsing your command:\n\n"
-       (clojure.string/join \newline errors)))
+       (str/join \newline errors)))
 
 (defn -main
   "Generate a file specified by file and number of lines."
