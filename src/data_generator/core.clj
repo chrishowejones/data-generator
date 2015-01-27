@@ -9,7 +9,7 @@
 
 (def number-of-codes 1000)
 
-(def error-rate-percentage 0.001)
+(def error-rate-percentage 75)
 
 (defn my-proxy-with [this]
   (let [metadata (atom {})]
@@ -23,7 +23,6 @@
 (def proxied-date
     (proxy [java.util.Date] []
         (toString [] "My date")))
-
 
 (defn alphas
   {:return-type :alpha}
@@ -43,7 +42,9 @@
 (defn alphabetic-as-str [len]
   (apply str (gen/sample gen/char-alphanumeric len)))
 
-(defn decimal-as-str [scale precision]
+(defn decimal-as-str
+  {:return-type :numeric}
+  [scale precision]
   (let [int-digits (- scale precision)]
     (do
       (str (apply str (gen/sample gen/pos-int int-digits)) "." (apply str (gen/sample gen/pos-int precision))))))
@@ -75,18 +76,32 @@
     (format/unparse (format/formatter "yyyy-MM-dd")
      (t/plus date (t/days days-to-add)))))
 
-(defmacro error-value
-  "Generate error values for function if function has :return-type of :alpha :numeric or :date"
-  [func]
+(defn call-error [func]
   (let [return-type (get
-          (meta
-           (resolve (first func))) :return-type :not-found)]
+                     (meta
+                      (resolve (first func))) :return-type :not-found)]
     (condp = return-type
       :alpha `(error-alphas ~func)
       :numeric `(error-numerics ~func)
       :date `(error-numerics ~func)
       :not-found func)))
 
+(defmacro error-values
+  "Generate error values for function if function has :return-type of :alpha :numeric or :date"
+  [func-seq]
+  (let [result (atom [])]
+    (doseq [func func-seq]
+      (swap! result
+             #(conj % (call-error func))))
+    @result))
+
+(error-values [(numerics-as-str 10) (alphas 5)])
+
+(let [a (atom [2 3])]
+  (swap! a #(conj % 1)))
+
+(defn generate-error? []
+  (< (* (rand) 100) error-rate-percentage))
 
 (defn isin []
   (apply str (alphas 2) (numerics-as-str 10)))
@@ -131,13 +146,17 @@
 (def next-trade-id (trade-ids 1199))
 
 
-(defn buy-sell []
+(defn buy-sell
+  {:return-type :alpha}
+  []
   (rand-nth
    ["BSBK"
     "SBBK"
     "SBSB"]))
 
-(defn currency []
+(defn currency
+  {:return-type :alpha}
+  []
   (rand-nth
    ["GBP"
     "EUR"
@@ -149,96 +168,102 @@
     "CNY"
     "AUD"]))
 
-(defn security-type []
+(defn security-type
+  {:return-type :alpha}
+  []
   (rand-nth [
-"SYNTHETIC LOC"
-"SYNTHETIC REVOLVER"
-"TAX-SPARED"
-"TERM"
-"TERM GUARANTEE FAC"
-"TERM INCREMENT"
-"TERM LIFO"
-"TERM MULTI-DRAW"
-"TERM OVERDRAFT"
-"TERM REV"
-"TERM TAX-SPARED"
-"TERM VAT-TRNCH"
-"UK GILT STOCK"
-"US DOMESTIC"
-"US NON-DOLLAR"
-"VAT-TRNCH"
-"WARRANT"
-"YANKEE"
-"BANKERS ACCEPTANCE"
-"BASIS SWAP"
-"BUTTERFLY SWAP"
-"CAPS & FLOORS"
-"CD"
-"COMMERCIAL PAPER"
-"CONTRACT FRA"
-"CREDIT DEFAULT SWAP"
-"CROSS"
-"Currency future"
-"Currency option"
-"Currency spot"]))
+             "SYNTHETIC LOC"
+             "SYNTHETIC REVOLVER"
+             "TAX-SPARED"
+             "TERM"
+             "TERM GUARANTEE FAC"
+             "TERM INCREMENT"
+             "TERM LIFO"
+             "TERM MULTI-DRAW"
+             "TERM OVERDRAFT"
+             "TERM REV"
+             "TERM TAX-SPARED"
+             "TERM VAT-TRNCH"
+             "UK GILT STOCK"
+             "US DOMESTIC"
+             "US NON-DOLLAR"
+             "VAT-TRNCH"
+             "WARRANT"
+             "YANKEE"
+             "BANKERS ACCEPTANCE"
+             "BASIS SWAP"
+             "BUTTERFLY SWAP"
+             "CAPS & FLOORS"
+             "CD"
+             "COMMERCIAL PAPER"
+             "CONTRACT FRA"
+             "CREDIT DEFAULT SWAP"
+             "CROSS"
+             "Currency future"
+             "Currency option"
+             "Currency spot"]))
 
-(defn market []
+(defn market
+  {:return-type :alpha}
+  []
   (rand-nth
    ["XNYS"
-"APXL"
-"AQUA"
-"AQXE"
-"XNYS"
-"XNYS"
-"XNYS"
-"ASEX"
-"XASX"
-"XASX"
-"XASX"
-"XASX"
-"XASX"
-"ATDF"
-"DBOX"
-"AWBX"
-"AWEX"
-"BACE"
-"XBAB"
-"BALT"
-"BAML"
-"BAPX"
-"BARX"
-"BARX"
-"BARX"
-"BCXE"
-"BCXE"
-"BCXE"
-"BATS"
-"BATS"
-"BATS"
-"BBSF"
-"BARX"
-"BCFS"
-"BCMM"
-"BCSE"
-"BCXE"
-"BEEX"
-"XBER"
-"XBER"
-"XBER"
-"BETA"
-"BFEX"
-"BGCI"
-"BGCF"
-"BGCI"
-"BIDS"
-"XBLB"
-"CHEV"
-"BLOX"
-"BLPX"
-"BLTD"
-"BALT"]))
+    "APXL"
+    "AQUA"
+    "AQXE"
+    "XNYS"
+    "XNYS"
+    "XNYS"
+    "ASEX"
+    "XASX"
+    "XASX"
+    "XASX"
+    "XASX"
+    "XASX"
+    "ATDF"
+    "DBOX"
+    "AWBX"
+    "AWEX"
+    "BACE"
+    "XBAB"
+    "BALT"
+    "BAML"
+    "BAPX"
+    "BARX"
+    "BARX"
+    "BARX"
+    "BCXE"
+    "BCXE"
+    "BCXE"
+    "BATS"
+    "BATS"
+    "BATS"
+    "BBSF"
+    "BARX"
+    "BCFS"
+    "BCMM"
+    "BCSE"
+    "BCXE"
+    "BEEX"
+    "XBER"
+    "XBER"
+    "XBER"
+    "BETA"
+    "BFEX"
+    "BGCI"
+    "BGCF"
+    "BGCI"
+    "BIDS"
+    "XBLB"
+    "CHEV"
+    "BLOX"
+    "BLPX"
+    "BLTD"
+    "BALT"]))
 
-(defn trade-type []
+(defn trade-type
+  {:return-type :alpha}
+  []
   (rand-nth
    ["RT"
     "ST"
@@ -260,7 +285,9 @@
     "RC"]))
 
 
-(defn reversal []
+(defn reversal
+  {:return-type :alpha}
+  []
   (rand-nth
    ["Y"
     "N"]))
@@ -275,7 +302,7 @@
                  (next-trade-id)
                  (isin-code code-keys)
                  (cusip-code code-keys)
-                 trade-date
+                 (identity trade-date)
                  (later-date trade-date)
                  (buy-sell)
                  (numerics-as-str 10)
@@ -290,14 +317,41 @@
                  (reversal)
                  (trade-type))))
 
+(defn error-line [] (let [code-keys (rand-code-indexes)
+                    trade-date (new-date)]
+                      (error-values
+                       [(next-trade-id)
+                        (isin-code code-keys)
+                        (cusip-code code-keys)
+                        (identity trade-date)
+                        (later-date trade-date)
+                        (buy-sell)
+                        (numerics-as-str 10)
+                        (decimal-as-str 10 2)
+                        (decimal-as-str 10 2)
+                        (currency)
+                        (numerics-as-str 9)
+                        (numerics-as-str 8)
+                        (decimal-as-str 12 3)
+                        (market)
+                        (security-type)
+                        (reversal)
+                        (trade-type)])))
+
 (defn lines [] (repeatedly line))
+
+(defn lines-with-errors []
+  (repeatedly #(if (generate-error?)
+                 (error-line)
+                 (line))))
 
 (defn csv-line [l]
   (str (str/join "," l) "\n"))
 
 (defn output-csv
-  ([filename] (output-csv filename 10))
-  ([filename num-lines]
+  ([filename] (output-csv filename 10 nil))
+  ([filename num-lines] (output-csv filename num-lines nil))
+  ([filename num-lines errors]
    (with-open [out-file (io/writer filename)]
      (.write out-file (csv-line (first header)))
      (doseq [l (take num-lines (lines))]
@@ -313,6 +367,7 @@
     :default 10
     :parse-fn #(Integer/parseInt (str/trim %))
     ]
+   ["-e" "--errors" "Generate errors if switch present."]
    ;; A boolean option defaulting to nil
    ["-h" "--help"]])
 
@@ -339,5 +394,6 @@
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
     (cond
       (:help options) (println (usage summary))
-      errors (exit 1 (error-msg errors)))
-    (time (output-csv (options :filename) (options :lines)))))
+      errors (exit 1 (error-msg errors))
+      :else (time (output-csv (options :filename) (options :lines) (options :e))))
+    ))
