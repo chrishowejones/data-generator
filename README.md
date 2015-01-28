@@ -18,6 +18,9 @@ Options:
 
     -f, --filename FILENAME  defaults to 'trade.csv'
     -l, --lines LINES        defaults to 10 lines in output file
+    -n, --nils               nils allowed in lines
+    -e, --errors             errors generated randomly in lines
+    -r, --rateoferrors       percentage of error rate if -e set
 
 ## Examples
 
