@@ -9,7 +9,7 @@
 
 (def number-of-codes 1000)
 
-(def error-rate-percentage 75)
+(def ^:dynamic *error-rate-percentage* 0.1)
 
 (defn my-proxy-with [this]
   (let [metadata (atom {})]
@@ -76,15 +76,18 @@
     (format/unparse (format/formatter "yyyy-MM-dd")
      (t/plus date (t/days days-to-add)))))
 
-(defn call-error [func]
-  (let [return-type (get
-                     (meta
-                      (resolve (first func))) :return-type :not-found)]
-    (condp = return-type
-      :alpha `(error-alphas ~func)
-      :numeric `(error-numerics ~func)
-      :date `(error-numerics ~func)
-      :not-found func)))
+(defn call-error
+  ([func]
+                  (let [return-type (get
+                                     (meta
+                                      (resolve (first func))) :return-type :not-found)]
+                    (if (= 1 (rand-int 2))
+                      nil
+                      (condp = return-type
+                        :alpha `(error-alphas ~func)
+                        :numeric `(error-numerics ~func)
+                        :date `(error-numerics ~func)
+                        :not-found func)))))
 
 (defmacro error-values
   "Generate error values for function if function has :return-type of :alpha :numeric or :date"
@@ -95,13 +98,8 @@
              #(conj % (call-error func))))
     @result))
 
-(error-values [(numerics-as-str 10) (alphas 5)])
-
-(let [a (atom [2 3])]
-  (swap! a #(conj % 1)))
-
 (defn generate-error? []
-  (< (* (rand) 100) error-rate-percentage))
+  (< (* (rand) 100) *error-rate-percentage*))
 
 (defn isin []
   (apply str (alphas 2) (numerics-as-str 10)))
@@ -124,10 +122,11 @@
   (take number-of-codes
         (repeatedly sedol)))
 
-(def code-types [:cusip :sedol :isin] )
+(def code-types [:cusip :isin] )
 
 (defn rand-code-indexes []
-  (set (repeatedly 3 #(get code-types (rand-int 3)))))
+  (let [num-of-code-types (count code-types)]
+    (set (repeatedly num-of-code-types #(get code-types (rand-int num-of-code-types))))))
 
 (defn isin-code [set-of-code-types]
   (if (set-of-code-types :isin) (rand-nth isins) nil))
@@ -338,23 +337,29 @@
                         (reversal)
                         (trade-type)])))
 
-(defn lines [] (repeatedly line))
-
-(defn lines-with-errors []
-  (repeatedly #(if (generate-error?)
-                 (error-line)
-                 (line))))
+(defn lines
+  ([] (lines false false))
+  ([nil-allowed?] (lines nil-allowed? false))
+  ([nil-allowed? errors?]
+   (repeatedly #(cond
+                  (and errors? (generate-error?)) (error-line)
+                  nil-allowed? (let [aline (line)]
+                                 (conj
+                                  (map (fn [x] (if (= 1 (rand-int 5)) nil x)) (rest aline))
+                                  (first aline)))
+                  :else (line)))))
 
 (defn csv-line [l]
   (str (str/join "," l) "\n"))
 
 (defn output-csv
-  ([filename] (output-csv filename 10 nil))
-  ([filename num-lines] (output-csv filename num-lines nil))
-  ([filename num-lines errors]
+  ([filename] (output-csv filename 10 false false))
+  ([filename num-lines] (output-csv filename num-lines false false))
+  ([filename num-lines nil-allowed?] (output-csv filename num-lines nil-allowed? false))
+  ([filename num-lines nil-allowed? errors?]
    (with-open [out-file (io/writer filename)]
      (.write out-file (csv-line (first header)))
-     (doseq [l (take num-lines (lines))]
+     (doseq [l (take num-lines (lines nil-allowed? errors?))]
        (.write out-file
                (csv-line l))))))
 
@@ -367,7 +372,12 @@
     :default 10
     :parse-fn #(Integer/parseInt (str/trim %))
     ]
+   ["-n" "--nils" "Allow nils in columns."]
    ["-e" "--errors" "Generate errors if switch present."]
+   ["-r" "--rateoferrors PERCENTAGE OF ERRORS" (format "Percentage error rate (defaults to %s)" *error-rate-percentage*)
+    :default nil
+    :parse-fn #(Integer/parseInt (str/trim %))
+    ]
    ;; A boolean option defaulting to nil
    ["-h" "--help"]])
 
@@ -395,5 +405,10 @@
     (cond
       (:help options) (println (usage summary))
       errors (exit 1 (error-msg errors))
-      :else (time (output-csv (options :filename) (options :lines) (options :e))))
-    ))
+      :else (time
+             (let [rateoferrors (options :rateoferrors)
+                   write-csv #(output-csv (options :filename) (options :lines) (options :nils) (options :errors))]
+               (if-let [error-rate rateoferrors]
+                 (binding [*error-rate-percentage* error-rate]
+                   (write-csv))
+                 (write-csv)))))))
