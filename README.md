@@ -20,7 +20,7 @@ Options:
     -l, --lines LINES        defaults to 10 lines in output file
     -n, --nils               nils allowed in lines
     -e, --errors             errors generated randomly in lines
-    -r, --rateoferrors       percentage of error rate if -e set
+    -r, --rateoferrors       percentage of error rate if -e set (defaults to 0.1%)
 
 ## Examples
 
