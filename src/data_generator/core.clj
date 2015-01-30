@@ -367,17 +367,20 @@
   ;; file name
   [["-f" "--filename FILENAME" "File name for output"
     :default "trade.csv"
-    :validate [#(and (not (nil? %)) (not (empty? %))) "Must not be empty or nil"]]
+    :validate [#(and (not (nil? %)) (not (empty? %))) "Must not be empty or nil"]
+    :parse-fn #(str/trim %)]
+   ;; number of lines of data to generate
    ["-l" "--lines LINES" "Number of lines to generate"
     :default 10
-    :parse-fn #(Integer/parseInt (str/trim %))
-    ]
+    :parse-fn #(Integer/parseInt (str/trim %))]
+   ;; allow nils
    ["-n" "--nils" "Allow nils in columns."]
+   ;; generate errors
    ["-e" "--errors" "Generate errors if switch present."]
+   ;; percentage rate of errors
    ["-r" "--rateoferrors PERCENTAGE OF ERRORS" (format "Percentage error rate (defaults to %s)" *error-rate-percentage*)
     :default nil
-    :parse-fn #(Integer/parseInt (str/trim %))
-    ]
+    :parse-fn #(Integer/parseInt (str/trim %))]
    ;; A boolean option defaulting to nil
    ["-h" "--help"]])
 
