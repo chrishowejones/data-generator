@@ -12,19 +12,6 @@
 
 (def ^:dynamic *error-rate-percentage* 0.1)
 
-(defn my-proxy-with [this]
-  (let [metadata (atom {})]
-    (proxy [Object clojure.lang.IObj] []
-      (withMeta [new-meta] (do
-                             (swap! metadata merge-with new-meta)
-                             this))
-      (meta [] @metadata)
-      (toString [] (.toString this)))))
-
-(def proxied-date
-    (proxy [java.util.Date] []
-        (toString [] "My date")))
-
 (defn alphas
   {:return-type :alpha}
   [len]
