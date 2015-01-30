@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clj-time.core :as t]
             [clj-time.format :as format]
+            [taoensso.timbre :as timbre]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]])
   (:gen-class))
@@ -81,13 +82,11 @@
                   (let [return-type (get
                                      (meta
                                       (resolve (first func))) :return-type :not-found)]
-                    (if (= 1 (rand-int 2))
-                      nil
-                      (condp = return-type
-                        :alpha `(error-alphas ~func)
-                        :numeric `(error-numerics ~func)
-                        :date `(error-numerics ~func)
-                        :not-found func)))))
+                    (condp = return-type
+                      :alpha `(error-alphas ~func)
+                      :numeric `(error-numerics ~func)
+                      :date `(error-numerics ~func)
+                      :not-found func))))
 
 (defmacro error-values
   "Generate error values for function if function has :return-type of :alpha :numeric or :date"
@@ -341,9 +340,11 @@
   ([] (lines false false))
   ([nil-allowed?] (lines nil-allowed? false))
   ([nil-allowed? errors?]
+   (timbre/debug "(lines " nil-allowed? errors? ")")
    (repeatedly #(cond
-                  (and errors? (generate-error?)) (error-line)
+                  (and errors? (generate-error?)) (do (timbre/trace "(lines) calling error-line") (error-line))
                   nil-allowed? (let [aline (line)]
+                                 (timbre/trace "(lines) adding nils")
                                  (conj
                                   (map (fn [x] (if (= 1 (rand-int 5)) nil x)) (rest aline))
                                   (first aline)))
@@ -405,13 +406,13 @@
   "Generate a file specified by file and number of lines."
   [& args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
+    (timbre/info "Options : " options)
     (cond
       (:help options) (println (usage summary))
       errors (exit 1 (error-msg errors))
-      :else (time
-             (let [rateoferrors (options :rateoferrors)
-                   write-csv #(output-csv (options :filename) (options :lines) (options :nils) (options :errors))]
-               (if-let [error-rate rateoferrors]
-                 (binding [*error-rate-percentage* error-rate]
-                   (write-csv))
-                 (write-csv)))))))
+      :else (str "Job finished!" (let [rateoferrors (options :rateoferrors)
+                                       write-csv #(output-csv (options :filename) (options :lines) (options :nils) (options :errors))]
+                                   (if-let [error-rate rateoferrors]
+                                     (binding [*error-rate-percentage* error-rate]
+                                       (write-csv))
+                                     (write-csv)))))))
