@@ -1,4 +1,4 @@
-(defproject data-generator "0.1.0-SNAPSHOT"
+(defproject data-generator "0.1.0"
   :description "CSV trade file data generator."
   :url "https://github.com/chrishowejones/data-generator"
   :license {:name "Eclipse Public License"
